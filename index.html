@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>WNDRPets Express - Check Service Coverage</title>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #f4f6f8;
+    color: #222;
+    min-height: 100vh;
+    padding:
+      max(20px, env(safe-area-inset-top))
+      max(20px, env(safe-area-inset-right))
+      max(20px, env(safe-area-inset-bottom))
+      max(20px, env(safe-area-inset-left));
+  }
+
+  .card {
+    width: 100%;
+    max-width: 440px;
+    margin: 20px auto;
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px 22px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08);
+    text-align: center;
+  }
+
+  h1 {
+    font-size: 22px;
+    margin: 0 0 10px;
+  }
+
+  p {
+    line-height: 1.5;
+    font-size: 15px;
+  }
+
+  button {
+    display: block;
+    width: 100%;
+    min-height: 52px;
+    margin-top: 22px;
+    background: #2563eb;
+    color: #fff;
+    border: 0;
+    border-radius: 10px;
+    padding: 15px 20px;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  button:active {
+    transform: scale(.98);
+  }
+
+  button:disabled {
+    opacity: .6;
+    cursor: default;
+  }
+
+  .result {
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 10px;
+    line-height: 1.5;
+    display: none;
+    font-size: 15px;
+    text-align: center;
+  }
+
+  .ok {
+    background: #e7f7ec;
+    color: #14532d;
+  }
+
+  .no {
+    background: #fdecec;
+    color: #7f1d1d;
+  }
+
+  .err {
+    background: #fff7e6;
+    color: #7c4a03;
+  }
+
+  small {
+    color: #666;
+    line-height: 1.4;
+  }
+</style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+  <h1>Are we in your area?</h1>
+
+  <p>
+    Tap the button below and allow location access.
+    We'll use your current location to check whether
+    WNDRPets Express services your area.
+  </p>
+
+  <button id="btn" type="button">
+    📍 Share My Location
+  </button>
+
+  <div id="result" class="result" aria-live="polite"></div>
+
+  <p>
+    <small>
+      Your location is only used to check service coverage.
+    </small>
+  </p>
+
+</div>
+
+<script>
+
+(function () {
+
+  /*
+   * =====================================================
+   * n8n PRODUCTION POST WEBHOOK
+   * =====================================================
+   *
+   * This is the URL that receives:
+   *
+   * {
+   *   "lat": 14.xxxxx,
+   *   "lng": 120.xxxxx,
+   *   "accuracy": 20
+   * }
+   *
+   */
+
+  const N8N_WEBHOOK_URL =
+    "https://wpx-test.app.n8n.cloud/webhook/service-coverage";
+
+
+  /*
+   * =====================================================
+   * ELEMENTS
+   * =====================================================
+   */
+
+  const btn = document.getElementById("btn");
+  const box = document.getElementById("result");
+
+
+  /*
+   * =====================================================
+   * DISPLAY MESSAGE
+   * =====================================================
+   */
+
+  function show(type, html) {
+
+    box.className = "result " + type;
+    box.innerHTML = html;
+    box.style.display = "block";
+
+  }
+
+
+  /*
+   * =====================================================
+   * CHECK HTTPS
+   * =====================================================
+   */
+
+  function checkSecureConnection() {
+
+    if (!window.isSecureContext) {
+
+      show(
+        "err",
+        "<strong>Secure connection required</strong><br><br>" +
+        "Location sharing requires HTTPS. " +
+        "Please open the official WNDRPets Express link."
+      );
+
+      return false;
+    }
+
+    return true;
+  }
+
+
+  /*
+   * =====================================================
+   * GET GPS LOCATION
+   * =====================================================
+   */
+
+  function getLocation() {
+
+    /*
+     * Make sure page is HTTPS.
+     */
+
+    if (!checkSecureConnection()) {
+      return;
+    }
+
+
+    /*
+     * Check browser GPS support.
+     */
+
+    if (!navigator.geolocation) {
+
+      show(
+        "err",
+        "<strong>Location not supported</strong><br><br>" +
+        "Your browser does not support location sharing."
+      );
+
+      return;
+    }
+
+
+    /*
+     * Disable button while checking.
+     */
+
+    btn.disabled = true;
+
+    btn.textContent =
+      "📍 Getting your location...";
+
+
+    show(
+      "err",
+      "Please allow location access when your browser asks."
+    );
+
+
+    /*
+     * =================================================
+     * REQUEST GPS
+     * =================================================
+     */
+
+    navigator.geolocation.getCurrentPosition(
+
+      /*
+       * ===============================================
+       * SUCCESS
+       * ===============================================
+       */
+
+      function (position) {
+
+        const lat =
+          position.coords.latitude;
+
+        const lng =
+          position.coords.longitude;
+
+        const accuracy =
+          position.coords.accuracy;
+
+
+        console.log("GPS latitude:", lat);
+        console.log("GPS longitude:", lng);
+        console.log("GPS accuracy:", accuracy);
+
+
+        btn.textContent =
+          "Checking service coverage...";
+
+
+        /*
+         * =============================================
+         * SEND GPS TO n8n
+         * =============================================
+         */
+
+        fetch(
+          N8N_WEBHOOK_URL,
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+
+              lat: lat,
+
+              lng: lng,
+
+              accuracy: accuracy
+
+            })
+          }
+        )
+
+        /*
+         * =============================================
+         * CHECK HTTP RESPONSE
+         * =============================================
+         */
+
+        .then(function (response) {
+
+          console.log(
+            "n8n HTTP status:",
+            response.status
+          );
+
+
+          if (!response.ok) {
+
+            throw new Error(
+              "n8n returned HTTP " +
+              response.status
+            );
+
+          }
+
+
+          return response.json();
+
+        })
+
+
+        /*
+         * =============================================
+         * PROCESS n8n RESPONSE
+         * =============================================
+         */
+
+        .then(function (data) {
+
+          console.log(
+            "n8n response:",
+            data
+          );
+
+
+          /*
+           * COVERED
+           */
+
+          if (data.covered === true) {
+
+            show(
+              "ok",
+
+              "<strong>" +
+              (
+                data.title ||
+                "Good news! Your area is covered."
+              ) +
+              "</strong><br><br>" +
+
+              (
+                data.client_message ||
+                "Your area is covered."
+              )
+            );
+
+          }
+
+
+          /*
+           * NOT COVERED
+           */
+
+          else if (
+            data.status === "NOT_AVAILABLE" &&
+            data.covered === false
+          ) {
+
+            show(
+              "no",
+
+              "<strong>" +
+              (
+                data.title ||
+                "Service not available in your area."
+              ) +
+              "</strong><br><br>" +
+
+              (
+                data.client_message ||
+                "Your location is currently outside our service area."
+              )
+            );
+
+          }
+
+
+          /*
+           * INVALID LOCATION
+           */
+
+          else if (
+            data.status === "INVALID_LOCATION" ||
+            data.error === true
+          ) {
+
+            show(
+              "err",
+
+              "<strong>" +
+              (
+                data.title ||
+                "Location unavailable"
+              ) +
+              "</strong><br><br>" +
+
+              (
+                data.client_message ||
+                "We couldn't determine your location."
+              )
+            );
+
+          }
+
+
+          /*
+           * UNKNOWN RESPONSE
+           */
+
+          else {
+
+            show(
+              "err",
+
+              "<strong>Unable to check coverage</strong><br><br>" +
+              "The coverage system returned an unexpected response. " +
+              "Please try again."
+            );
+
+          }
+
+
+          /*
+           * ENABLE BUTTON AGAIN
+           */
+
+          btn.disabled = false;
+
+          btn.textContent =
+            "Check Again";
+
+        })
+
+
+        /*
+         * =============================================
+         * CONNECTION ERROR
+         * =============================================
+         */
+
+        .catch(function (error) {
+
+          console.error(
+            "n8n request error:",
+            error
+          );
+
+
+          show(
+            "err",
+
+            "<strong>Something went wrong</strong><br><br>" +
+            "We couldn't connect to the service coverage system. " +
+            "Please try again."
+          );
+
+
+          btn.disabled = false;
+
+          btn.textContent =
+            "Try Again";
+
+        });
+
+      },
+
+
+      /*
+       * =================================================
+       * GPS ERROR
+       * =================================================
+       */
+
+      function (error) {
+
+        console.error(
+          "GPS error code:",
+          error.code
+        );
+
+        console.error(
+          "GPS error message:",
+          error.message
+        );
+
+
+        btn.disabled = false;
+
+        btn.textContent =
+          "Try Again";
+
+
+        /*
+         * PERMISSION DENIED
+         */
+
+        if (error.code === 1) {
+
+          show(
+            "err",
+
+            "<strong>Location permission denied</strong><br><br>" +
+
+            "Please allow location access for this website " +
+            "in your browser settings, then try again."
+          );
+
+        }
+
+
+        /*
+         * POSITION UNAVAILABLE
+         */
+
+        else if (error.code === 2) {
+
+          show(
+            "err",
+
+            "<strong>Location unavailable</strong><br><br>" +
+
+            "Your phone could not determine your current location. " +
+            "Make sure Location Services are turned on and try again."
+          );
+
+        }
+
+
+        /*
+         * TIMEOUT
+         */
+
+        else if (error.code === 3) {
+
+          show(
+            "err",
+
+            "<strong>Location request timed out</strong><br><br>" +
+
+            "It took too long to determine your location. " +
+            "Please try again."
+          );
+
+        }
+
+
+        /*
+         * UNKNOWN ERROR
+         */
+
+        else {
+
+          show(
+            "err",
+
+            "<strong>Unable to get your location</strong><br><br>" +
+
+            "Please check your phone's location settings and try again."
+          );
+
+        }
+
+      },
+
+
+      /*
+       * =================================================
+       * GPS OPTIONS
+       * =================================================
+       *
+       * We intentionally use enableHighAccuracy:false.
+       *
+       * This allows iPhones to use Wi-Fi/cellular-assisted
+       * positioning when appropriate and can be faster
+       * than demanding GPS-only positioning.
+       *
+       */
+
+      {
+        enableHighAccuracy: false,
+
+        timeout: 30000,
+
+        maximumAge: 60000
+      }
+
+    );
+
+  }
+
+
+  /*
+   * =====================================================
+   * BUTTON
+   * =====================================================
+   */
+
+  btn.addEventListener(
+    "click",
+    getLocation
+  );
+
+
+})();
+
+</script>
+
+</body>
+</html>
